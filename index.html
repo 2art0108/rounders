@@ -329,11 +329,12 @@ main {
   scroll-padding: 16px 0 calc(var(--bar-h) + var(--fade) / 2);
   /* Cards dissolve into the page above the action area (and under the field once scrolled).
      A mask blends with any background, so there's no visible edge over the glows. */
-  --fade-top: 0px;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--bar-h) - var(--fade)), transparent calc(100% - var(--bar-h) + 6px));
-  mask-image: linear-gradient(180deg, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--bar-h) - var(--fade)), transparent calc(100% - var(--bar-h) + 6px));
+  --fade-from: 0px; --fade-top: 0px;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, transparent var(--fade-from), #000 var(--fade-top), #000 calc(100% - var(--bar-h) - var(--fade)), transparent calc(100% - var(--bar-h) + 6px));
+  mask-image: linear-gradient(180deg, transparent 0, transparent var(--fade-from), #000 var(--fade-top), #000 calc(100% - var(--bar-h) - var(--fade)), transparent calc(100% - var(--bar-h) + 6px));
 }
-.banks-area.scrolled { --fade-top: 18px; }
+/* Scrolled: nothing shows in the 28px headroom (it sits under the field on small screens), then a soft fade */
+.banks-area.scrolled { --fade-from: 28px; --fade-top: 48px; }
 .banks {
   width: 100%; max-width: calc(var(--grid-w) + 4px);
   margin: 0 auto;
@@ -609,7 +610,7 @@ main {
   .country .ccode { display: inline; }
   .cta-bar .btn { width: 100%; max-width: var(--grid-w); }
   .pay-area { --qr: 200px; }
-  .pay-card { padding-left: 16px; padding-right: 16px; }
+  .pay-card { padding: 24px 24px 24px; } /* logo inset = top inset; bottom halved for phones */
   .pay-card .btn, .pay-card .btn-site, .btn-skel { width: 100%; min-width: 0; }
   .btn-slot { width: 100%; }
   .dev { display: none; } /* desktop-only dev panel */
