@@ -540,18 +540,13 @@ main {
 .btn-site[aria-disabled="true"] { cursor: not-allowed; }
 .btn-site[aria-disabled="true"]:hover { border-color: var(--line-strong); background: #ffffff05; }
 
-.r-icon {
-  width: 64px; height: 64px; border-radius: 50%;
-  display: grid; place-items: center; margin-bottom: 18px;
-}
-.r-icon.warn { color: var(--warn); background: #fbbf2414; box-shadow: 0 0 0 1px #fbbf2459; }
 /* Result illustrations (success / failed / expired). The PNGs carry their own glow and
    ~19% transparent padding top and bottom, which already gives the gap to the title. */
 .r-art { display: block; width: 220px; height: 160px; object-fit: contain; }
 /* Cancel the transparent band above the artwork so the visible group (art → button)
    is what gets centred in the card, not the PNG's padding */
 .state.result .r-art { margin-top: -30px; }
-.state.on .r-icon, .state.on .r-art { animation: pop .5s var(--ease-out) both; }
+.state.on .r-art { animation: pop .5s var(--ease-out) both; }
 @keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
 .r-title { font-size: 18px; font-weight: 500; color: var(--text); }
 .r-desc { font-size: 14px; color: var(--muted); max-width: 320px; margin: 6px 0 24px; }
@@ -768,10 +763,10 @@ main {
 
             <!-- session could not be created (network / backend) — not a payment failure -->
             <div class="state result" data-state="init_error">
-              <span class="r-icon warn" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 8v5m0 3.5v.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/></svg></span>
+              <img class="r-art" src="assets/state-failed.webp" alt="" width="220" height="160">
               <p class="r-title">Couldn't start the payment</p>
               <p class="r-desc">Check your connection and try again.</p>
-              <div class="r-actions"><button class="btn btn-primary" type="button" data-action="retry">Try again</button></div>
+              <div class="r-actions"><button class="btn btn-primary btn-hug" type="button" data-action="retry">Try again</button></div>
             </div>
           </div>
         </div>
@@ -797,6 +792,9 @@ main {
 // ---- Demo data ----
 const AMOUNT = { currency: '$', code: 'USD', value: '12.50' };
 const DEFAULT_COUNTRY = 'at';
+// Demo walkthrough (mock mode only): "Open bank website" on the QR screen opens the first
+// state, each state's main button opens the next one, and the last one returns to bank selection.
+const DEMO_FLOW = ['failed', 'expired', 'success'];
 
 const REVOLUT = { name: 'Revolut', bg: '#191c1f', fg: '#fff', mark: 'R' };
 const COUNTRIES = [
@@ -1293,11 +1291,35 @@ function renderBankLink(url) {
     pel.link.href = url;
     pel.link.removeAttribute('aria-disabled');
     pel.link.removeAttribute('title');
+  } else if (USE_MOCK) {
+    pel.link.href = '#';
+    pel.link.removeAttribute('aria-disabled');
+    pel.link.title = 'Demo: continue to the next payment state';
   } else {
     pel.link.removeAttribute('href');
     pel.link.setAttribute('aria-disabled', 'true');
     pel.link.title = 'Bank link not available for this session';
   }
+}
+
+// ---- Demo walkthrough (mock only — never reachable with a real backend) ----
+function showDemoState(ui) {
+  pay.attempt++; // stop polling / ignore the mock session from here on
+  stopPolling();
+  setPayUI(ui);
+}
+function demoAdvance() {
+  const i = DEMO_FLOW.indexOf(pay.ui);
+  if (i === -1) return false;
+  if (i < DEMO_FLOW.length - 1) showDemoState(DEMO_FLOW[i + 1]);
+  else backToBankSelection();
+  return true;
+}
+function backToBankSelection() {
+  state.bank = null;
+  leavePay();
+  renderBanks(false);
+  renderContinue();
 }
 
 function stopPolling() { clearTimeout(pay.timer); pay.timer = null; }
@@ -1386,18 +1408,23 @@ function leavePay({ fromHistory = false } = {}) {
 
 pel.change.addEventListener('click', () => leavePay());
 addEventListener('popstate', () => { if (document.body.dataset.screen === 'pay') leavePay({ fromHistory: true }); });
-pel.link.addEventListener('click', e => { if (pel.link.getAttribute('aria-disabled') === 'true') e.preventDefault(); });
+pel.link.addEventListener('click', e => {
+  if (USE_MOCK && !pay.session?.authUrl) { // demo: the "bank website" step leads into the walkthrough
+    e.preventDefault();
+    if (pay.ui === 'waiting') showDemoState(DEMO_FLOW[0]);
+    return;
+  }
+  if (pel.link.getAttribute('aria-disabled') === 'true') e.preventDefault();
+});
 
 pel.stage.addEventListener('click', e => {
   const action = e.target.closest('[data-action]')?.dataset.action;
+  if (USE_MOCK && (action === 'retry' || action === 'done') && demoAdvance()) return;
   if (action === 'retry') startPayment();            // same bank & country, new session
   else if (action === 'change') leavePay();
   else if (action === 'done') {
     if (CONFIG.returnUrl) { location.assign(CONFIG.returnUrl); return; }
-    state.bank = null;
-    leavePay();
-    renderBanks(false);
-    renderContinue();
+    backToBankSelection();
   }
 });
 
