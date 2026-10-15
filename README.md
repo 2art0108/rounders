@@ -17,12 +17,13 @@ deployment settings into `<html data-*>` attributes.
 
 | Variable | Effect |
 |---|---|
-| `ROUNDERS_DEMO=1` | Demo deployment: mock payments + "Mock payments · dev" panel on the deployed URL. Never use for real payments. |
+| `ROUNDERS_DEMO=1` | Also shows the "Mock payments · dev" panel on the deployed URL (it's always on for localhost). |
 | `ROUNDERS_API_BASE` | `https://…` base URL of the payment backend. Real sessions; disables the mock (overrides `ROUNDERS_DEMO`). |
 | `ROUNDERS_RETURN_URL` | `https://…` where "Done" sends the customer after a successful payment. |
 
-With none set, the deployed page has no backend and shows "Couldn't start the payment" after Continue
-(the mock only runs on localhost / `.test` hosts).
+With no `ROUNDERS_API_BASE` the page runs as a demo: pick a bank → Continue → QR (mock) → tap the QR →
+Payment failed → any button → Session expired → button → Payment successful → Done → back to bank selection.
+The order lives in `DEMO_FLOW` in `index.html`. Setting `ROUNDERS_API_BASE` turns the demo off completely.
 
 Backend contract (placeholder, see `HttpAPI` in `index.html`):
 `POST /v1/payment_sessions` (with `Idempotency-Key`) → `{ id, qr_data, auth_url, expires_at }`,

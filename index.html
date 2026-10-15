@@ -571,8 +571,8 @@ main {
 .dev .note { color: var(--faint); font-size: 11px; line-height: 1.4; }
 .dev .st { color: var(--text); }
 /* Dev only: the QR is clickable to simulate a scan. Feedback sits outside the code itself. */
-.dev-scan .qr-tile { cursor: pointer; transition: outline-color .15s; outline: 2px dashed transparent; outline-offset: 4px; }
-.dev-scan .qr-tile:hover { outline-color: #fbbf2499; }
+/* Demo: the QR code is the trigger that moves the walkthrough on */
+.demo-qr .qr-tile { cursor: pointer; }
 
 /* ---- Motion ---- */
 .reveal { opacity: 0; transform: translateY(26px); animation: rise .9s var(--ease-out) forwards; animation-delay: var(--d, 0s); }
@@ -793,8 +793,8 @@ main {
 // ---- Demo data ----
 const AMOUNT = { currency: '$', code: 'USD', value: '12.50' };
 const DEFAULT_COUNTRY = 'at';
-// Demo walkthrough (mock mode only): "Open bank website" on the QR screen opens the first
-// state, each state's main button opens the next one, and the last one returns to bank selection.
+// Demo walkthrough (runs whenever no backend is configured): clicking the QR code opens the
+// first state, any button on a state opens the next one, and the last one returns to bank selection.
 const DEMO_FLOW = ['failed', 'expired', 'success'];
 
 const REVOLUT = { name: 'Revolut', bg: '#191c1f', fg: '#fff', mark: 'R' };
@@ -1234,12 +1234,14 @@ const MockAPI = (() => {
     settle(id, status) { const s = sessions.get(id); if (s && (s.status === 'pending' || s.status === 'processing')) s.status = status; },
     // Simulates the customer scanning the QR: the bank now holds the payment for authorisation.
     // 'processing' is non-terminal, so the UI keeps waiting — no outcome is assumed.
-    scan(id) { const s = sessions.get(id); if (s && s.status === 'pending') { s.status = 'processing'; return true; } return false; },
     peek(id) { return sessions.get(id)?.status || null; },
   };
 })();
 
-const USE_MOCK = !CONFIG.apiBase && (IS_DEV || CONFIG.demo);
+// No backend configured → the page is a demo: mock sessions + the click-through walkthrough.
+// The dev panel (raw mock controls) only shows on local hosts or ROUNDERS_DEMO=1 builds.
+const USE_MOCK = !CONFIG.apiBase;
+const SHOW_DEV_PANEL = USE_MOCK && (IS_DEV || CONFIG.demo);
 const api = CONFIG.apiBase ? HttpAPI(CONFIG.apiBase) : USE_MOCK ? MockAPI : null;
 
 // Backend status → UI state. Unknown statuses keep waiting rather than guessing.
@@ -1420,7 +1422,7 @@ pel.link.addEventListener('click', e => {
 
 pel.stage.addEventListener('click', e => {
   const action = e.target.closest('[data-action]')?.dataset.action;
-  if (USE_MOCK && (action === 'retry' || action === 'done') && demoAdvance()) return;
+  if (USE_MOCK && (action === 'retry' || action === 'change' || action === 'done') && demoAdvance()) return;
   if (action === 'retry') startPayment();            // same bank & country, new session
   else if (action === 'change') leavePay();
   else if (action === 'done') {
@@ -1429,8 +1431,15 @@ pel.stage.addEventListener('click', e => {
   }
 });
 
-// ---- Dev-only mock controls (never rendered outside dev hosts / without the mock) ----
+// ---- Demo trigger: tap the QR code to move to the first result state ----
 if (USE_MOCK) {
+  document.body.classList.add('demo-qr');
+  pel.qr.title = 'Demo: tap to continue';
+  pel.qr.addEventListener('click', () => { if (pay.ui === 'waiting') showDemoState(DEMO_FLOW[0]); });
+}
+
+// ---- Dev-only mock controls (local hosts or ROUNDERS_DEMO=1 builds) ----
+if (SHOW_DEV_PANEL) {
   const dev = document.createElement('details');
   dev.className = 'dev';
   dev.innerHTML = `
@@ -1444,18 +1453,12 @@ if (USE_MOCK) {
       <label><input type="checkbox" data-ctl="networkDown"> Network down</label>
       <label><input type="checkbox" data-ctl="slowInit"> Slow init (4s)</label>
       <p class="note">Session: <span class="st" id="dev-st">—</span></p>
-      <p class="note">Click the QR to simulate a scan (→ processing), then settle the outcome here. The UI picks it up on the next status poll. Demo QR encodes a session id only.</p>
+      <p class="note">Settles the current mock session via the status poll. Tapping the QR runs the click-through demo instead. Demo QR encodes a session id only.</p>
     </div>`;
   document.body.appendChild(dev);
   const devSt = dev.querySelector('#dev-st');
   setInterval(() => { devSt.textContent = (pay.session && MockAPI.peek(pay.session.id)) || '—'; }, 400);
 
-  document.body.classList.add('dev-scan');
-  pel.qr.title = 'Dev: click to simulate scanning this QR';
-  pel.qr.addEventListener('click', () => {
-    if (pay.ui !== 'waiting' || !pay.session) return;
-    if (MockAPI.scan(pay.session.id)) dev.open = true; // hand over to the outcome controls
-  });
   dev.addEventListener('click', e => {
     const b = e.target.closest('[data-mock]');
     if (b && pay.session) MockAPI.settle(pay.session.id, b.dataset.mock);

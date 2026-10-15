@@ -4,7 +4,7 @@
 //
 //   ROUNDERS_API_BASE    payment backend base URL → real sessions (disables the mock)
 //   ROUNDERS_RETURN_URL  where "Done" sends the customer after a successful payment
-//   ROUNDERS_DEMO=1      demo deployment: mock payments + dev panel on a non-local host
+//   ROUNDERS_DEMO=1      also show the dev panel (raw mock controls) on a non-local host
 const fs = require("fs");
 const path = require("path");
 
@@ -45,5 +45,5 @@ const refs = [...html.matchAll(/src="(assets\/[^"]+)"/g)].map((m) => m[1]);
 const missing = refs.filter((r) => !fs.existsSync(path.join(dist, r)));
 if (!refs.length || missing.length) throw new Error("Build failed: missing assets: " + (missing.join(", ") || "none referenced"));
 
-const mode = env.apiBase ? "live backend" : env.demo ? "DEMO (mock payments)" : "no backend (mock only on localhost)";
+const mode = env.apiBase ? "live backend" : env.demo ? "demo + dev panel" : "demo (click-through, no backend)";
 console.log(`Build complete → dist/  ·  ${refs.length} assets  ·  mode: ${mode}`);
