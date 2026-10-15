@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "rounders-dev", "runtimeExecutable": "npx", "runtimeArgs": ["--yes", "serve@14.2.4", ".", "-l", "3100"], "port": 3100 },
+    { "name": "rounders-dist", "runtimeExecutable": "npx", "runtimeArgs": ["--yes", "serve@14.2.4", "dist", "-l", "3200"], "port": 3200 }
+  ]
+}

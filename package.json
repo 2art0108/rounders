@@ -1,0 +1,13 @@
+{
+  "name": "rounders-pay-by-bank",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rounders Pay by Bank — hosted checkout page (static), deployed on Vercel.",
+  "scripts": {
+    "build": "node build.js",
+    "build:demo": "ROUNDERS_DEMO=1 node build.js",
+    "dev": "npx --yes serve@14.2.4 . -l 3100",
+    "preview": "npx --yes serve@14.2.4 dist -l 3200"
+  },
+  "engines": { "node": ">=18" }
+}
